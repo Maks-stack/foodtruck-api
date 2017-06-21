@@ -10,7 +10,7 @@ export default ({config, db}) => {
 
   //CRUD Create Read Update Delete
   // "v1/foodtruck/add" - Create
-  api.post("/add", (req, res) => {
+  api.post("/add", authenticate, (req, res) => {
     let newFoodTruck = new FoodTruck()
     newFoodTruck.name = req.body.name
     newFoodTruck.foodType = req.body.foodType
@@ -46,7 +46,7 @@ export default ({config, db}) => {
   })
 
   //v1/foodtruck/:id - Update
-  api.put("/:id", (req, res) => {
+  api.put("/:id", authenticate, (req, res) => {
     FoodTruck.findById(req.params.id, (err, foodtruck) => {
       if(err) {
         res.send(err)
@@ -65,20 +65,38 @@ export default ({config, db}) => {
   })
 
   // "/v1/foodtruck/:id" - Delete
-  api.delete("/:id", (req, res) => {
-    FoodTruck.remove({
-      _id: req.params.id
-    }, (err, foodtruck) => {
-      if(err){
-        res.send(err)
+  api.delete("/:id", authenticate, (req, res) => {
+    FoodTruck.findById(req.params.id, (err, foodtruck) => {
+      if(err) {
+        res.status(500).send(err)
+        return
       }
-      res.json({ message: "FoodTruck Successfully removed" })
+      if(foodtruck === null) {
+        res.status(404).send("Foodtruck not found")
+        return
+      }
+      FoodTruck.remove({
+        _id: req.params.id
+      }, (err, foodtruck) => {
+        if(err){
+          res.status(500).send(err)
+          return
+        }
+        Review.remove({
+          foodtruck: req.params.id
+        }, (err, review) => {
+          if(err){
+            res.send(err)
+          }
+          res.json({ message: "FoodTruck and reviews Successfully removed" })
+        })
+      })
     })
   })
 
   //add review for a specific foodtruck id
   // "/v1/foodtruck/reviews/add/:id"
-  api.post("/reviews/add/:id", (req,res) => {
+  api.post("/reviews/add/:id", authenticate, (req,res) => {
     FoodTruck.findById(req.params.id, (err, foodtruck) => {
       if(err){
         res.send(err)
